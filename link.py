@@ -2,7 +2,7 @@ import os
 from augustus_id import id
 import glob
 
-file_location = '/root/mydata'
+file_location = '/opt/Thesis'
 
 def augustus(filename, filename_no_extention):
     augustus_species_tag = id(filename)
@@ -16,7 +16,7 @@ def gffread(filename, filename_no_extention):
     return os.system('gffread ' + gff_in + ' -g ' + filename + ' -x ' + gff_cds + ' -y ' + gff_tr_cds)
 
 def orthofinder():
-    return os.system('./orthofinder -f' + file_location)
+    return os.system('./orthofinder -f ' + file_location)
 
 def files(ext):
     return glob.glob(ext)
