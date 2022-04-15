@@ -2,7 +2,7 @@ import os
 from augustus_id import id
 import glob
 
-file_location = '/opt/Thesis'
+file_location = '/opt/mydata'
 
 def augustus(filename, filename_no_extention):
     augustus_species_tag = id(filename)
