@@ -14,7 +14,7 @@ def gffread(filename, filename_no_extention):
     gff_in = filename_no_extention + '.gff3' #it's the same of augustus_out
     gff_cds = filename_no_extention + '_cds.fa'
     gff_tr_cds = filename_no_extention + '_tr_cds.fa'
-    return os.system('gffread ' + gff_in + ' -g ' + filename + ' -x ' + gff_cds + ' -y ' + gff_tr_cds)
+    return os.system('gffread ' + gff_in + ' -g ' + filename + ' -y ' + gff_tr_cds)
 
 def orthofinder():
     return os.system('orthofinder -f ' + file_location)
@@ -33,3 +33,6 @@ for i in files('*.fna'):
 #orthofinder command
 orthofinder() #orthofinder
 print('orthofinder done')
+
+
+#' -x ' + gff_cds +
