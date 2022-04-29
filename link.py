@@ -28,7 +28,7 @@ def gffread(filename):
 
 
 def orthofinder(file_ortho_location):
-    return os.system('orthofinder -f ' + file_location + '/' + file_ortho_location)
+    return os.system('orthofinder -d -f ' + file_location + '/' + file_ortho_location)
 
 
 def files(ext):
@@ -74,8 +74,4 @@ def workflow():
 
 # orthofinder command
 orthofinder(file_location + '/' + directory_cds)  # orthofinder
-print('orthofinder done')
-
-#orthofinder command
-orthofinder() #orthofinder
 print('orthofinder done')
