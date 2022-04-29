@@ -28,7 +28,7 @@ def gffread(filename):
 
 
 def orthofinder(file_ortho_location):
-    return os.system('orthofinder -d -f ' + file_location + '/' + file_ortho_location)
+    return os.system('orthofinder -d -f '  + file_ortho_location)
 
 
 def files(ext):
