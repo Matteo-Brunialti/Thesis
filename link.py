@@ -1,77 +1,89 @@
 import os
 from augustus_id import id
 import glob
+from Bio import SeqIO
+from multiprocessing import Pool
+import shutil
 
 file_location = '/opt/mydata'
 os.chdir(file_location)
-directory_cds_tr = 'cds_tr'
-directory_cds = 'cds'
+
+tmp_dir = '/opt/mydata/tmp'
+os.makedirs(tmp_dir)
+
+cds_dir = '/opt/mydata/cds'
+os.makedirs(cds_dir)
+tr_cds_dir = '/opt/mydata/tr_cds'
+os.makedirs(tr_cds_dir)
 
 
 def augustus(filename):
-    filename_no_extention = no_exetention(filename)
     augustus_species_tag = id(filename)
-    augustus_out = filename_no_extention + '.gff3'
+    augustus_out = os.path.splitext(filename) + '.gff3'
     os.system('augustus --gff3=on --species=' + augustus_species_tag + ' ' + filename + ' > ' + augustus_out)
+    return (augustus_out)
+
+
+def gffread(filename, option=''):
+    filename_no_extension = os.path.splitext(filename)
+    gff_cds = filename_no_extension + '_cds.fa'
+    gff_tr_cds = filename_no_extension + '_tr_cds.fa'
+    genomic_seqs_fasta = f'{filename_no_extension}.fna'
+    os.system('gffread ' + filename + ' -g ' + genomic_seqs_fasta + ' -x ' + gff_cds + ' -y ' + gff_tr_cds)
+    os.system(f'mv {gff_tr_cds} {tr_cds_dir}'), os.system(f'mv {gff_cds} {cds_dir}')
     return
 
 
-def gffread(filename):
-    filename_no_extention = no_exetention(filename)
-    gff_in = filename_no_extention + '.gff3'  # it's the same of augustus_out
-    gff_cds = filename_no_extention + '_cds.fa'
-    gff_cds_tr = filename_no_extention + '_cds_tr.fa'
-    os.system('gffread ' + gff_in + ' -g ' + filename + ' -x ' + gff_cds + ' -y ' + gff_cds_tr)
-    os.mkdir(directory_cds_tr), os.mkdir(directory_cds)
-    os.system('mv *tr.fa ' + directory_cds_tr), os.system('mv *cds.fa ' + directory_cds)
-    return
+def orthofinder(file_ortho_location, option=''):
+    return os.system('orthofinder -d -f ' + file_ortho_location)
 
 
-def orthofinder(file_ortho_location):
-    return os.system('orthofinder -d -f '  + file_ortho_location)
+def split_fasta(fasta_file):
+    with open(fasta_file) as input_handle:
+        for record in SeqIO.parse(input_handle, "fasta"):
+            handle = record.id + '.fna'
+            SeqIO.write(record, handle, "fasta")
+    return print(f'splitting of fasta file {fasta_file} status: done')
+
+def join_gff(file, read_files):
+    with open(file, "wb") as outfile:
+        for f in read_files:
+            with open(f, "rb") as infile:
+                outfile.write(infile.read())
 
 
-def files(ext):
-    return glob.glob(ext)
-
-
-def extention(string):
-    for i in string[::-1]:
-        if i == '.':
-            return string[len(string) - string.index(i):]
-
-
-def no_exetention(string):
-    for i in string[::-1]:
-        if i == '.':
-            return string[:len(string) - string.index(i)]
-
-
-def workflow():
-    files_list = files('.')  # list of file in directory
+def workflow(folder_name=file_location):
+    os.chdir(folder_name)
     var = 0
-    for i in files_list:
-        i = extention(i)
-        if i == '.fna':
+    files_list = os.listdir()
+    for file in files_list:
+        if file.endswith('fna'):
             var = 1
-        elif i == '.gff3':
+        elif file.endswith('.gff'):
             var = 2
-            break
     if var == 0:
-        return print('error no files or worng files in directory')
-    if var == 1:
-        for i in files_list:
-            print('the file going is:' + i)
-            augustus(i)  # augustus
-            print('augustus done')
-    if var == 2:
-        for i in files_list:
-            if extention(i) == '.gff3':
-                print('the file going is:' + i)
-                gffread(i)  # gffread
-                print('gffread done')
+        return 'something is wrong in the input file'
+    elif var == 1:
+        for file in files_list:
+            print(f'the file going is {file}')
+            os.system(f'mv {file} {tmp_dir}')
+            os.chdir(tmp_dir)
+            split_fasta(file)
+            files_list = os.listdir()
+            results = (Pool(5).map(augustus, files_list))
+            gff3_file = f'{os.path.splitext(file)}.gff3'
+            join_gff(gff3_file, results)  # function to create
+            # os.system(f'mv {file} {file_location}')
+            # for file in os.listdir():
+              # os.remove(file)
+            print(f'the file {file} has finished augustus')
+    else:
+        os.chdir(tmp_dir)
+        for file in files_list:
+            if file.endswith('.fna'):
+                print(f'the file going is {file}')
+                gffread(file)
+                print(f'the file {file} has finished gffread')
+    orthofinder(tr_cds_dir)
 
-
-# orthofinder command
-orthofinder(file_location + '/' + directory_cds)  # orthofinder
-print('orthofinder done')
+print(workflow())
