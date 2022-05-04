@@ -62,7 +62,8 @@ def workflow(path='/opt/mydata'):
     tr_cds_dir = f'{gffread_dir}/tr_cds'
     orthofinder_dir = f'{path}/Orthofinder'
 
-    if glob.glob('*.fna') == [] and glob.glob('*.gff3') == []:  # base case no files are given
+    # base case no files are given
+    if glob.glob('*.fna') == [] and glob.glob('*.gff3') == [] and os.listdir(augustus_dir) == []:  
         return 'the files are incorrect'
 
     for f in os.listdir(path):
