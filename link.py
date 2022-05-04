@@ -8,34 +8,35 @@ import shutil
 file_location = '/opt/mydata'
 os.chdir(file_location)
 
-tmp_dir = '/opt/mydata/tmp'
-os.makedirs(tmp_dir)
 
-cds_dir = '/opt/mydata/cds'
-os.makedirs(cds_dir)
-tr_cds_dir = '/opt/mydata/tr_cds'
-os.makedirs(tr_cds_dir)
+def build(foldername=os.getcwd()):
+    l = ['/tmp', '/augustus', '/gffread', '/gffread/cds', '/gffread/tr_cds',
+         '/Orthofinder']
+    for directory in l:
+        if not os.path.exists(foldername + directory):
+            os.makedirs(foldername + directory)
+    return
+
+
+build()  # building data structure
 
 
 def augustus(filename):
-    augustus_species_tag = id(filename)
-    augustus_out = os.path.splitext(filename) + '.gff3'
-    os.system('augustus --gff3=on --species=' + augustus_species_tag + ' ' + filename + ' > ' + augustus_out)
+    augustus_out = filename.split('.')[0] + '.gff3'
+    os.system(f'augustus --gff3=on --species={id(filename)} {filename} > {augustus_out}')
     return (augustus_out)
 
 
 def gffread(filename, option=''):
-    filename_no_extension = os.path.splitext(filename)
-    gff_cds = filename_no_extension + '_cds.fa'
-    gff_tr_cds = filename_no_extension + '_tr_cds.fa'
-    genomic_seqs_fasta = f'{filename_no_extension}.fna'
-    os.system('gffread ' + filename + ' -g ' + genomic_seqs_fasta + ' -x ' + gff_cds + ' -y ' + gff_tr_cds)
-    os.system(f'mv {gff_tr_cds} {tr_cds_dir}'), os.system(f'mv {gff_cds} {cds_dir}')
+    filename_no_extension = filename.split('.')[0]
+    os.system(
+        f'gffread {filename} -g {filename_no_extension}.fna -x {filename_no_extension}_cds.fa -y {filename_no_extension}_tr_cds.fa')
     return
 
 
 def orthofinder(file_ortho_location, option=''):
-    return os.system('orthofinder -d -f ' + file_ortho_location)
+    os.system(f'orthofinder -d -f {file_ortho_location}')
+    return f'orthofinder is done'
 
 
 def split_fasta(fasta_file):
@@ -45,6 +46,7 @@ def split_fasta(fasta_file):
             SeqIO.write(record, handle, "fasta")
     return print(f'splitting of fasta file {fasta_file} status: done')
 
+
 def join_gff(file, read_files):
     with open(file, "wb") as outfile:
         for f in read_files:
@@ -52,38 +54,53 @@ def join_gff(file, read_files):
                 outfile.write(infile.read())
 
 
-def workflow(folder_name=file_location):
-    os.chdir(folder_name)
-    var = 0
-    files_list = os.listdir()
-    for file in files_list:
-        if file.endswith('fna'):
-            var = 1
-        elif file.endswith('.gff'):
-            var = 2
-    if var == 0:
-        return 'something is wrong in the input file'
-    elif var == 1:
-        for file in files_list:
-            print(f'the file going is {file}')
-            os.system(f'mv {file} {tmp_dir}')
-            os.chdir(tmp_dir)
-            split_fasta(file)
-            files_list = os.listdir()
-            results = (Pool(5).map(augustus, files_list))
-            gff3_file = f'{os.path.splitext(file)}.gff3'
-            join_gff(gff3_file, results)  # function to create
-            # os.system(f'mv {file} {file_location}')
-            # for file in os.listdir():
-              # os.remove(file)
-            print(f'the file {file} has finished augustus')
+def workflow(path='/opt/mydata'):
+    os.chdir(path)
+    augustus_dir = f'{path}/augustus'
+    gffread_dir = f'{path}/gffread'
+    tmp_dir = f'{path}/tmp'
+    tr_cds_dir = f'{gffread_dir}/tr_cds'
+    orthofinder_dir = f'{path}/Orthofinder'
+
+    if glob.glob('*.fna') == [] and glob.glob('*.gff3') == []:  # base case no files are given
+        return 'the files are incorrect'
+
+    for f in os.listdir(path):
+        if f.endswith('.fna'):
+            shutil.move(f, augustus_dir)
+        elif f.endswith('.gff3'):
+            shutil.move(f, gffread_dir)
+
+    os.chdir(tmp_dir)
+    # augustus
+    if os.listdir(gffread_dir) == []:
+        for f in os.listdir(augustus_dir):
+            shutil.copy(f, tmp_dir)
+            split_fasta(f)
+            os.remove(f)
+            Pool(10).map(augustus, os.listdir(tmp_dir))
+            join_gff(f.split('.')[0] + '.gff3', glob.glob('*.gff3'))
+            shutil.copy(f.split('.')[0] + '.gff3', gffread_dir)
+            for tf in os.listdir(tmp_dir):
+                os.remove(tf)
+    # gffread
     else:
-        os.chdir(tmp_dir)
-        for file in files_list:
-            if file.endswith('.fna'):
-                print(f'the file going is {file}')
-                gffread(file)
-                print(f'the file {file} has finished gffread')
-    orthofinder(tr_cds_dir)
+        for f in os.listdir(augustus_dir):
+            shutil.copy(f, tmp_dir)
+        for f in os.listdir(gffread_dir):
+            shutil.copy(f, tmp_dir)
+        for f in glob.glob(tmp_dir + '*.gff3'):
+            gffread(f)
+            shutil.copy(f.split('.')[0] + '_tr_cds.fa')
+            shutil.copy(f.split('.')[0] + '_cds.fa')
+        for f in os.listdir(tmp_dir):
+            os.remofe(f)
+    # orthofinder
+    for f in tr_cds_dir:
+        shutil.copy(f, tmp_dir)
+    orthofinder(tmp_dir)
+    shutil.copytree(f'{tmp_dir}/OrthoFinder', orthofinder_dir)
+    return 'analysis done'
+
 
 print(workflow())
